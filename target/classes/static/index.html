@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Secure Data Archiver</title>
+  <style>
+    :root { --primary:#0d1b2a; --accent:#ffb703; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif; background: var(--primary); color: #fff; }
+    header { padding: 24px; text-align:center; background: #0f2436; border-bottom: 2px solid var(--accent); }
+    h1 { margin: 0 0 6px; }
+    p.sub { margin:0; color:#cde; }
+    main { max-width: 860px; margin: 32px auto; background: #10273c; border: 1px solid #17334d; border-radius: 12px; padding: 24px; box-shadow: 0 8px 24px rgba(0,0,0,0.35); }
+    form { display: grid; gap: 16px; }
+    .field { display: grid; gap: 8px; }
+    label { font-weight: 600; }
+    input[type="file"], input[type="password"], select { padding: 12px; border-radius: 8px; border: 1px solid #294663; background: #0e2133; color:#fff; }
+    input[type="file"]::-webkit-file-upload-button { background: var(--accent); color:#111; border:none; padding: 8px 12px; border-radius: 6px; margin-right: 12px; cursor: pointer; font-weight: 700; }
+    .actions { display:flex; gap: 12px; align-items:center; }
+    button { background: var(--accent); color:#111; font-weight: 800; border:none; padding: 12px 16px; border-radius: 8px; cursor: pointer; }
+    button:hover { filter: brightness(1.05); }
+    .note { font-size: 13px; color:#cfd9e6; }
+    footer { text-align:center; color:#cde; padding: 24px; }
+    .card { background:#0f2436; padding:16px; border:1px solid #17334d; border-radius:10px; }
+    .algo { display:flex; gap:12px; }
+    .algo select { flex: 1; }
+  </style>
+  <script>
+    async function submitForm(e) {
+      e.preventDefault();
+      const form = document.getElementById('archiveForm');
+      const data = new FormData(form);
+      const file = data.get('file');
+      if (!file || !file.size) { alert('Please choose a file.'); return; }
+      const pass = data.get('passphrase');
+      if (!pass) { alert('Please enter a passphrase.'); return; }
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true; btn.textContent = 'Archiving…';
+      try {
+        const res = await fetch('/archive', { method:'POST', body: data });
+        if (!res.ok) { const t = await res.text(); throw new Error(t || ('HTTP '+res.status)); }
+        const blob = await res.blob();
+        const a = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        a.href = url; a.download = (file.name || 'archive') + '.sda';
+        document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      } catch (err) {
+        alert('Failed: ' + (err && err.message ? err.message : err));
+      } finally {
+        btn.disabled = false; btn.textContent = 'Create Encrypted Archive';
+      }
+    }
+  </script>
+  </head>
+<body>
+  <header>
+    <h1>Secure Data Archiver</h1>
+    <p class="sub">Zip and encrypt your files with AES-GCM or AES-CBC</p>
+  </header>
+  <main>
+    <div class="card">
+      <form id="archiveForm" onsubmit="submitForm(event)" enctype="multipart/form-data" method="post">
+        <div class="field">
+          <label for="file">Choose file</label>
+          <input id="file" name="file" type="file" required />
+        </div>
+        <div class="field">
+          <label for="passphrase">Passphrase</label>
+          <input id="passphrase" name="passphrase" type="password" placeholder="Enter a strong passphrase" required />
+          <div class="note">Key is derived with PBKDF2-HMAC-SHA256 (100k iterations).</div>
+        </div>
+        <div class="field algo">
+          <label for="algorithm">Algorithm</label>
+          <select id="algorithm" name="algorithm">
+            <option value="AES_GCM">AES-GCM (recommended)</option>
+            <option value="AES_CBC">AES-CBC</option>
+          </select>
+        </div>
+        <div class="actions">
+          <button id="submitBtn" type="submit">Create Encrypted Archive</button>
+          <span class="note">You will receive an .sda file for download.</span>
+        </div>
+      </form>
+    </div>
+  </main>
+  <footer>
+    Built with Java backend and HTML-only frontend. Theme: dark blue + amber.
+  </footer>
+</body>
+</html>
+
+
